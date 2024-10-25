@@ -14,13 +14,13 @@ from typing import Callable
 class GDEFunc(nn.Module):
     def __init__(
         self, 
-        gnn:nn.Module, 
-        augment:bool=False, 
+        gnn:nn.Module,         
+        augment:bool=False,    
         augment_size:int=2
     ):
         """General GDE function class. To be passed to an ODEBlock"""
         super().__init__()
-        self.gnn = gnn
+        self.gnn = gnn        # takes in a gnn module 
         
         # Number of function calls
         self.nfe = 0
@@ -31,9 +31,9 @@ class GDEFunc(nn.Module):
         # Dimensions of 0s to augment x with (as well as the time vector t)
         self.augment_size = augment_size
     
-    def set_graph(self, g:dgl.DGLGraph):
+    def set_graph(self, g:dgl.DGLGraph): # The input is a graph object from DGL
         for layer in self.gnn:
-            layer.g = g
+            layer.g = g # Iterates over the layers in gnn and assigns the graph g to each one
             
     def forward(self, t, x):
         self.nfe += 1
@@ -54,7 +54,7 @@ class ControlledGDEFunc(GDEFunc):
             
     def forward(self, t, x):
         self.nfe += 1
-        x = torch.cat([x, self.h0], 1)
+        x = torch.cat([x, self.h0], 1) # Concatenates the initial node features (self.h0) with the current node features x along the feature dimension
         x = self.gnn(x)
         return x
     

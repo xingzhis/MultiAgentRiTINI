@@ -16,6 +16,8 @@ class GraphAttentionLayer(nn.Module):
     """
     def __init__(self, in_features, out_features, dropout, alpha, adj, concat=True):
         super(GraphAttentionLayer, self).__init__()
+
+        # Save input arguments
         self.dropout = dropout
         self.in_features = in_features
         self.out_features = out_features
@@ -23,21 +25,34 @@ class GraphAttentionLayer(nn.Module):
         self.concat = concat
         self.adj = adj
 
+        # Learnable weight matrix W
         self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))
-        nn.init.xavier_uniform_(self.W.data, gain=1.414)
+        nn.init.xavier_uniform_(self.W.data, gain=1.414) # # Xavier initialization for the weight matrix.
+
+        # Learnable attention vector a (concatenates input features from two nodes).
         self.a = nn.Parameter(torch.empty(size=(2*out_features, 1)))
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
 
+        # LeakyReLU activation function with negative slope alpha.
         self.leakyrelu = nn.LeakyReLU(self.alpha)
 
     def forward(self, h):
+        # Apply the weight matrix to input features (h).
         Wh = torch.mm(h, self.W) # h.shape: (N, in_features), Wh.shape: (N, out_features)
-        e = self._prepare_attentional_mechanism_input(Wh)
+        e = self._prepare_attentional_mechanism_input(Wh) # # Compute attention scores.
 
         zero_vec = -9e15*torch.ones_like(e)
+
+        # If two nodes are connected (self.adj > 0), the attention score e is kept. If they are not connected, the large negative value (zero_vec) is used
         attention = torch.where(self.adj > 0, e, zero_vec)
+
+        # convert the attention scores into probabilities, attention weights for each node's neighbors sum to 1
         attention = F.softmax(attention, dim=1)
+
+        # prevent overfitting
         attention = F.dropout(attention, self.dropout, training=self.training)
+
+        #  weighted sum of the neighboring nodes' features, where the weights come from the attention mechanism.
         h_prime = torch.matmul(attention, Wh)
 
         if self.concat:
@@ -50,11 +65,13 @@ class GraphAttentionLayer(nn.Module):
         # self.a.shape (2 * out_feature, 1)
         # Wh1&2.shape (N, 1)
         # e.shape (N, N)
-        Wh1 = torch.matmul(Wh, self.a[:self.out_features, :])
-        Wh2 = torch.matmul(Wh, self.a[self.out_features:, :])
+        # recall: self.a = nn.Parameter(torch.empty(size=(2*out_features, 1)))
+        Wh1 = torch.matmul(Wh, self.a[:self.out_features, :]) # first half - sourse nodes
+        Wh2 = torch.matmul(Wh, self.a[self.out_features:, :]) # second half - destination nodes 
         # broadcast add
-        e = Wh1 + Wh2.T
+        e = Wh1 + Wh2.T # The resulting e has shape (N, N), where each element e[i, j] is the attention score between node i and node j.
         return self.leakyrelu(e)
+
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'

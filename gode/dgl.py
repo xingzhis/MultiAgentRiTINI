@@ -54,17 +54,18 @@ import dgl.nn.pytorch.conv as conv
 class MeanAttentionLayer(nn.Module):
     def __init__(self, axis=1):
         super().__init__()
-        self.axis = axis
+        self.axis = axis # Specifies the axis to compute the mean along.
     def forward(self, x):
-        return torch.mean(x, axis=self.axis)
+        return torch.mean(x, axis=self.axis) # Computes the mean along the specified axis.
 
 class SumAttentionLayer(nn.Module):
     def __init__(self, axis=1):
         super().__init__()
         self.axis = axis
     def forward(self, x):
-        return torch.sum(x, axis=self.axis)
+        return torch.sum(x, axis=self.axis) # sum 
 
+# A sequential container for DGL-based layers.
 class DGLSequential(nn.Module):
     def __init__(self, graph, *args):
         super(DGLSequential, self).__init__()
@@ -74,8 +75,8 @@ class DGLSequential(nn.Module):
 
     def forward(self, graph, input, **kwargs):
         for module in self:
-            input = module(graph, input)
-        return input
+            input = module(graph, input) # Feeds the input and graph to each layer.
+        return input # Returns the output of the last layer.
 
 
 class DGLDotGatConv(conv.DotGatConv):
@@ -89,7 +90,7 @@ class DGLDotGatConv(conv.DotGatConv):
 class DGLTAGConv(conv.TAGConv):
     def __init__(self, graph, in_feats, out_feats, k=2, bias=True, activation=None):
          super(DGLTAGConv, self).__init__(in_feats, out_feats, k=k, bias=bias, activation=activation)
-         self.graph = graph
+         self.graph = graph # Stores the graph.
 
     def forward(self, feat, edge_weight=None):
         return super().forward(self.graph, feat, edge_weight)
@@ -105,7 +106,7 @@ class DGLGATConv(conv.GATConv):
              negative_slope=negative_slope, residual=residual, activation=activation, 
              allow_zero_in_degree=allow_zero_in_degree, bias=bias
             )
-         self.graph = graph
+         self.graph = graph # Stores the graph.
 
     def forward(self, feat, get_attention=False):
         return super().forward(self.graph, feat, get_attention)
@@ -120,7 +121,7 @@ class DGLGATv2Conv(conv.GATv2Conv):
              negative_slope=negative_slope, residual=residual, activation=activation, 
              allow_zero_in_degree=allow_zero_in_degree, bias=bias, share_weights=share_weights
             )
-         self.graph = graph
+         self.graph = graph # Stores the graph.
 
     def forward(self, feat, get_attention=False):
         return super().forward(self.graph, feat, get_attention)
@@ -131,7 +132,7 @@ class DGLSAGEConv(conv.SAGEConv):
              in_feats, out_feats, aggregator_type, feat_drop=feat_drop, 
              bias=bias, norm=norm, activation=activation
             )
-         self.graph = graph
+         self.graph = graph # Stores the graph.
 
     def forward(self, feat, edge_weight=None):
         return super().forward(self.graph, feat, edge_weight)
@@ -143,7 +144,7 @@ class DGLPNAConv(conv.PNAConv):
             dropout=0.0, num_towers=1, edge_feat_size=0, residual=True
         ):
          super(DGLPNAConv, self).__init__(in_size, out_size, aggregators, scalers, delta, dropout=dropout, num_towers=num_towers, edge_feat_size=edge_feat_size, residual=residual)
-         self.graph = graph
+         self.graph = graph # Stores the graph.
 
     def forward(self, node_feat, edge_feat=None):
         return super().forward(self.graph, node_feat, edge_feat)
@@ -152,18 +153,18 @@ class DGLPNAConv(conv.PNAConv):
 from .utils import is_list_like
 from dgl.nn.pytorch import GATConv
 
-class GODE(nn.Module):
+class GODE(nn.Module): # Defines the GODE class, inheriting from nn.Module.
     def __init__(self, in_feats, out_feats, num_heads, activation=nn.Tanh):
         super(GODE, self).__init__()
 
-        self.in_feats = in_feats
-        self.out_feats = out_feats
-        self.num_heads = num_heads
+        self.in_feats = in_feats # Store the input feature size.
+        self.out_feats = out_feats # Store the output feature size.
+        self.num_heads = num_heads # Store the number of attention heads.
         
+         # Ensure num_heads is a list; if not, convert it into a list.
         num_heads = num_heads if is_list_like(num_heads) else [num_heads]
         
-        
-        
+        # Iterate through num_heads and create GATConv layers dynamically
         for idx, module in enumerate([
             GATConv(
                 in_feats=in_feats, out_feats=out_feats, 
@@ -174,8 +175,6 @@ class GODE(nn.Module):
             ) for i, n_heads in enumerate(num_heads)
         ]):
             self.add_module(str(idx), module)
-
-        
 
     def forward(self, graph, feat, get_attention=False):
         attns = []

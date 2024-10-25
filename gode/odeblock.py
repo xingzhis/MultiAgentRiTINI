@@ -14,10 +14,10 @@ class ODEBlock(nn.Module):
     def __init__(
         self, 
         func:nn.Module, 
-        method:str='dopri5', 
-        rtol:float=1e-3, 
-        atol:float=1e-4, 
-        adjoint:bool=True
+        method:str='dopri5', # the ODE solver method 
+        rtol:float=1e-3, # relative tolerance for the ODE Solver
+        atol:float=1e-4, # absolute tolerances for the ODE Solver 
+        adjoint:bool=True # Adjoint sensitivity method 
     ):
         """ Standard ODEBlock class. Can handle all types of ODE functions
             :method:str = {'euler', 'rk4', 'dopri5', 'adams'}
@@ -30,19 +30,23 @@ class ODEBlock(nn.Module):
         self.rtol = rtol
 
     def forward(
-        self, x:torch.Tensor, t:torch.Tensor, 
+        self, 
+        x:torch.Tensor, # the input nodes feature
+        t:torch.Tensor, # the time points over which to solve the ODE 
         return_whole_sequence:bool=False,
         adjoint:bool=None
     ):
         t = torch_t(t)
-        t = t.to(x.device).type_as(x)
+        t = t.to(x.device).type_as(x) # Moves the time tensor to the same device as the input tensor and ensures it has the same data type 
         
+         # Solves the ODE using the chosen solver, applying func (the differential equation) to x over the time span t
         solver = get_torchdiffeq_solver(self.adjoint if adjoint is None else adjoint)     
         out = solver(
             self.func, x, t,
             rtol=self.rtol, atol=self.atol, method=self.method
         ) 
         
+        # If return_whole_sequence is False, return only the final time point (last step), otherwise return the entire sequence
         if not return_whole_sequence:
             out = out[-1]
         
@@ -50,15 +54,19 @@ class ODEBlock(nn.Module):
     
     def forward_batched(self, x:torch.Tensor, nn:int, indices:list, timestamps:set):
         """ Modified forward for ODE batches with different integration times """
-        t = torch.Tensor(list(timestamps))
-        out = self.forward(x, t, return_whole_sequence=True)        
-        out = self._build_batch(out, nn, indices).reshape(x.shape)
+        t = torch.Tensor(list(timestamps)) # Converts the set of timestamps to a PyTorch tensor
+        out = self.forward(x, t, return_whole_sequence=True)  # Solves the ODE and returns the full time sequence      
+        out = self._build_batch(out, nn, indices).reshape(x.shape) # Reshapes the ODE output to match the batch's input shape
         return out
     
-    def _build_batch(self, odeout, nn, indices):
+    def _build_batch(self, odeout, nn, indices): # nn: number of nodes in the batch 
         b_out = []
         for i in range(len(indices)):
+
+            # For each set of indices, append the corresponding portion of the ODE output
             b_out.append(odeout[indices[i], i*nn:(i+1)*nn])
+
+        # Concatenate the batch output and move it to the appropriate device
         return torch.cat(b_out).to(odeout.device)              
         
     def trajectory(self, x:torch.Tensor, t_end:int, num_points:int):

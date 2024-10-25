@@ -36,7 +36,7 @@ def dgl_norm(g:dgl.DGLGraph, epoch=None) -> dgl.DGLGraph:
     # Compute diagonal of normalization matrix D according to standard formula
     degs = g.in_degrees().float()
     norm = torch.pow(degs, -0.5)
-    norm[torch.isinf(norm)] = 0
+    norm[torch.isinf(norm)] = 0 # Replaces any infinite values with 0.
 
     # Add to dgl.Graph in order for the norm to be accessible at training time
     g.ndata['norm'] = norm.unsqueeze(1).to(g.device)

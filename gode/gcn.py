@@ -42,7 +42,7 @@ class GCNLayer(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        stdv = 1. / math.sqrt(self.weight.size(1))
+        stdv = 1. / math.sqrt(self.weight.size(1)) # 1 / sqrt(out_features)
         self.weight.data.uniform_(-stdv, stdv)
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
@@ -56,11 +56,11 @@ class GCNLayer(nn.Module):
         h = h * self.g.ndata['norm']
         self.g.ndata['h'] = h
         self.g.update_all(
-            fn.copy_src(src='h', out='m'), 
-            self.msg_fn(msg='m', out='h')
+            fn.copy_src(src='h', out='m'),  # Copy node features from source nodes to create messages.
+            self.msg_fn(msg='m', out='h') # Aggregate the messages using the message function (default: sum).
         )
         
-        h = self.g.ndata.pop('h')
+        h = self.g.ndata.pop('h') # Retrieve the updated node features from the graph.
         
         # normalization by square root of dst degree
         h = h * self.g.ndata['norm']
